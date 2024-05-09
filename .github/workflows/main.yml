@@ -20,9 +20,6 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::949263681218:role/ankit-oidc-role
           aws-region: us-east-1
-      - name: Install zip
-        run: |
-          sudo apt install zip
 
       - name: Check for changes in lambda-1 directory
         id: lambda1-changed
@@ -34,11 +31,16 @@ jobs:
         working-directory: lambda-1
 
       - name: Deploy lambda1
+        working-directory: lambda-1
         if: steps.lambda1-changed.outputs.files == 'Changes detected'
         run: |
-          cd lambda-1
           zip -r lambda_zip.zip *
-          aws lambda update-function-code --function-name "lambda-1-${GITHUB_REF##*/}" --zip-file fileb://./lambda_zip.zip
+        uses: appleboy/lambda-action@v0.2.0
+        with:
+          region: us-east-1
+          function_name: "lambda-1-${GITHUB_REF##*/}"
+          zip_file: lambda_zip.zip
+
 
       - name: Check for changes in lambda-2 directory
         id: lambda2-changed
