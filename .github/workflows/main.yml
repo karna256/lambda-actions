@@ -41,7 +41,7 @@ jobs:
         uses: appleboy/lambda-action@v0.2.0
         with:
           region: us-east-1
-          function_name: "lambda-1-${GITHUB_REF##*/}"
+          function_name: lambda-1-dev
           zip_file: lambda-1/lambda_zip.zip
 
 
