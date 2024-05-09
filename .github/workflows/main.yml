@@ -30,16 +30,19 @@ jobs:
           fi
         working-directory: lambda-1
 
-      - name: Deploy lambda1
-        working-directory: lambda-1
+      - name: Zip lambda-1
         if: steps.lambda1-changed.outputs.files == 'Changes detected'
         run: |
+          cd lambda-1
           zip -r lambda_zip.zip *
+
+      - name: Deploy lambda1
+        if: steps.lambda1-changed.outputs.files == 'Changes detected'
         uses: appleboy/lambda-action@v0.2.0
         with:
           region: us-east-1
           function_name: "lambda-1-${GITHUB_REF##*/}"
-          zip_file: lambda_zip.zip
+          zip_file: lambda-1/lambda_zip.zip
 
 
       - name: Check for changes in lambda-2 directory
