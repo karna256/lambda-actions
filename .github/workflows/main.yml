@@ -4,7 +4,8 @@ on:
     branches:
       - dev
       - qa
-
+env:
+  change_flag: false
 jobs:
   check-for-change:
     runs-on: ubuntu-latest
@@ -27,7 +28,7 @@ jobs:
         with:
           patterns: 'lambda-2/**'
           run: |
-            change_list = "${{ steps.lambda-1.outputs.change_list }}|lambda-2"
+            change_list = "${{ steps.lambda-1.outputs.change_list }}|lambda-2" >> $GITHUB_OUTPUT
             echo "change_flag=true" >> $GITHUB_OUTPUT
       - name: Get output
         run: |
@@ -36,6 +37,7 @@ jobs:
           echo "${{ steps.lambda-1.outputs.change_flag }}"
           echo "${{ steps.lambda-2.outputs.change_flag }}"
   lambda-deploy-all:
+    if: ${{ env.change_flag  == 'true' }}
     needs: [check-for-change]
     strategy:
         matrix:
