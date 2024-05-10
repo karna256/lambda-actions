@@ -43,4 +43,4 @@ jobs:
         run: |
           cd ${{ matrix.label }}
           zip -r lambda_zip.zip *
-          aws lambda update-function-code --function-name "${{ matrix.label }}-$STAGE" --zip-file fileb://./lambda_zip.zip
+          aws lambda update-function-code --function-name "${{ matrix.label }}-${{ env.STAGE }}" --zip-file fileb://./lambda_zip.zip
