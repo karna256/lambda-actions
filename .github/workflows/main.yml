@@ -5,7 +5,10 @@ on:
       - dev
       - qa
 jobs:
-  lambda-deploy:
+  lambda-deploy-all:
+    strategy:
+        matrix:
+            label: [lambda-1, lambda-2]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -14,49 +17,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
           role-to-assume: arn:aws:iam::949263681218:role/ankit-oidc-role
           aws-region: us-east-1
-
-      - name: Check for changes in lambda-1 directory
-        id: lambda1-changed
+      - name: Set stage
         run: |
-          if grep -q "lambda-1" <(git diff --name-only HEAD~1 HEAD); then
-            change_detected="Changes detected"
-            echo "::set-output name=files::$change_detected"
+          if [[ $GITHUB_REF == refs/heads/dev ]]; then
+            echo "export STAGE=dev" >> $GITHUB_ENV
+          elif [[ $GITHUB_REF == refs/heads/qa ]]; then
+            echo "export STAGE=qa" >> $GITHUB_ENV
           fi
-        working-directory: lambda-1
-
-      - name: Zip lambda-1
-        if: steps.lambda1-changed.outputs.files == 'Changes detected'
+      - name: Check for changes in lambda directory
+        id: lambda-changed
         run: |
-          cd lambda-1
-          zip -r lambda_zip.zip *
-
-      - name: Deploy lambda1
-        if: steps.lambda1-changed.outputs.files == 'Changes detected'
-        uses: appleboy/lambda-action@v0.2.0
-        with:
-          region: us-east-1
-          function_name: lambda-1-dev
-          zip_file: lambda-1/lambda_zip.zip
-
-
-      - name: Check for changes in lambda-2 directory
-        id: lambda2-changed
-        run: |
-          if grep -q "lambda-2" <(git diff --name-only HEAD~1 HEAD); then
-            change_detected="Changes detected"
-            echo "::set-output name=files::$change_detected"
+          cd ${{ matrix.label }}
+          if grep -q "${{ matrix.label }}" <(git diff --name-only HEAD~1 HEAD); then
+            echo "change=Changes detected" >> $GITHUB_OUTPUT
           fi
-        working-directory: lambda-2
 
-      - name: Deploy lambda2
-        if: steps.lambda2-changed.outputs.files == 'Changes detected'
+      - name: Deploy lambda
+        if: steps.lambda-changed.outputs.change == 'Changes detected'
         run: |
-          cd lambda-2
+          cd ${{ matrix.label }}
           zip -r lambda_zip.zip *
-          aws lambda update-function-code --function-name "lambda-2-${GITHUB_REF##*/}" --zip-file fileb://./lambda_zip.zip
+          aws lambda update-function-code --function-name "${{ matrix.label }}-$STAGE" --zip-file fileb://./lambda_zip.zip
