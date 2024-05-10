@@ -4,8 +4,7 @@ on:
     branches:
       - dev
       - qa
-env:
-  change_flag: false
+
 jobs:
   check-for-change:
     runs-on: ubuntu-latest
@@ -30,11 +29,11 @@ jobs:
           run: |
             $change_list = "${change_list}|lambda-2"
             echo "change_flag=true" >> $GITHUB_ENV
-            echo "${{ change_list }}"
-            echo "${{ change_flag }}"
+            echo "${{ env.change_list }}"
+            echo "${{ env.change_flag }}"
   lambda-deploy-all:
     needs: [check-for-change]
-    if: ${{ change_flag }}
+    if: ${{ env.change_flag }}
     strategy:
         matrix:
             label: [lambda-1, lambda-2]
