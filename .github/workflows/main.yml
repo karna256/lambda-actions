@@ -27,7 +27,7 @@ jobs:
         with:
           patterns: 'lambda-2/**'
           run: |
-            change_list = "${change_list}|lambda-2"
+            change_list = "${{ steps.lambda-1.outputs.change_list }}|lambda-2"
             echo "change_flag=true" >> $GITHUB_OUTPUT
       - name: Get output
         run: |
