@@ -30,8 +30,8 @@ jobs:
           run: |
             change_list = "${change_list}|lambda-2"
             echo "change_flag=true" >> $GITHUB_ENV
-            echo "${{ env.change_list }}"
-            echo "${{ env.change_flag }}"
+            echo "${{ change_list }}"
+            echo "${{ change_flag }}"
   lambda-deploy-all:
     needs: [check-for-change]
     if: ${{ env.change_flag }}
