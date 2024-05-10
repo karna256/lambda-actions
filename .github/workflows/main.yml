@@ -20,6 +20,7 @@ jobs:
           patterns: 'lambda-1/**'
           run: |
             echo "change_list=lambda-1" >> $GITHUB_OUTPUT
+            echo "a"
             echo "change_flag=true" >> $GITHUB_OUTPUT
       - name: Check for changes in lambda-2
         id: lambda-2
@@ -28,7 +29,6 @@ jobs:
           patterns: 'lambda-2/**'
           run: |
             change_list = "${change_list}|lambda-2"
-            echo "a"
             echo "change_flag=true" >> $GITHUB_OUTPUT
   lambda-deploy-all:
     needs: [check-for-change]
