@@ -4,11 +4,38 @@ on:
     branches:
       - dev
       - qa
+env:
+  change_flag: false
 jobs:
+  check-for-change:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Check for changes in lambda-1
+        id: lambda-1
+        uses: yumemi-inc/path-filter@v2
+        with:
+          patterns: 'lambda-1/**'
+          run: |
+            echo "change_list=lambda-1" >> $GITHUB_ENV
+            echo "change_flag=true" >> $GITHUB_ENV
+      - name: Check for changes in lambda-2
+        id: lambda-2
+        uses: yumemi-inc/path-filter@v2
+        with:
+          patterns: 'lambda-2/**'
+          run: |
+            change_list = "${change_list}|lambda-2"
+            echo "change_flag=true" >> $GITHUB_ENV
   lambda-deploy-all:
+    needs: [check-for-change]
+    if: env.change_flag == 'true'
     strategy:
         matrix:
-            label: [lambda-1, lambda-2]
+            label: ${{ env.change_list }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -30,16 +57,7 @@ jobs:
           elif [[ $GITHUB_REF == refs/heads/qa ]]; then
             echo "STAGE=qa" >> $GITHUB_ENV
           fi
-      - name: Check for changes in lambda directory
-        id: lambda-changed
-        run: |
-          cd ${{ matrix.label }}
-          if grep -q "${{ matrix.label }}" <(git diff --name-only HEAD~1 HEAD); then
-            echo "change=Changes detected" >> $GITHUB_OUTPUT
-          fi
-
       - name: Deploy lambda
-        if: steps.lambda-changed.outputs.change == 'Changes detected'
         run: |
           cd ${{ matrix.label }}
           zip -r lambda_zip.zip *
