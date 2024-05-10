@@ -30,12 +30,13 @@ jobs:
           run: |
             change_list = "${change_list}|lambda-2"
             echo "change_flag=true" >> $GITHUB_ENV
+            echo "$change_list"
   lambda-deploy-all:
     needs: [check-for-change]
     if: env.change_flag == 'true'
     strategy:
         matrix:
-            label: ${{ env.change_list }}
+            label: [lambda-1, lambda-2]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
