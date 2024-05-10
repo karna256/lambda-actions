@@ -26,9 +26,9 @@ jobs:
       - name: Set stage
         run: |
           if [[ $GITHUB_REF == refs/heads/dev ]]; then
-            echo "export STAGE=dev" >> $GITHUB_ENV
+            echo "STAGE=dev" >> $GITHUB_ENV
           elif [[ $GITHUB_REF == refs/heads/qa ]]; then
-            echo "export STAGE=qa" >> $GITHUB_ENV
+            echo "STAGE=qa" >> $GITHUB_ENV
           fi
       - name: Check for changes in lambda directory
         id: lambda-changed
@@ -43,4 +43,4 @@ jobs:
         run: |
           cd ${{ matrix.label }}
           zip -r lambda_zip.zip *
-          aws lambda update-function-code --function-name "${{ matrix.label }}-${{ env.STAGE }}" --zip-file fileb://./lambda_zip.zip
+          aws lambda update-function-code --function-name "${{ matrix.label }}-$STAGE" --zip-file fileb://./lambda_zip.zip
