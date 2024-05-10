@@ -27,7 +27,7 @@ jobs:
         with:
           patterns: 'lambda-2/**'
           run: |
-            $change_list = "${change_list}|lambda-2"
+            change_list = "${change_list}|lambda-2"
             echo "a"
             echo "change_flag=true" >> $GITHUB_OUTPUT
   lambda-deploy-all:
