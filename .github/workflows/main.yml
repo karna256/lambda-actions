@@ -1,70 +1,85 @@
-name : lambda-deploy
+name: Update Lambda Functions
+
 on:
   push:
     branches:
       - dev
       - qa
-env:
-  change_flag: false
+      - staging
+      - main
+
+# Permission can be added at job level or workflow level
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read # This is required for actions/checkout
+#  pull-requests: write
+#  repository-projects: write
+#  issues: write
+
 jobs:
-  check-for-change:
+
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      lambdas: ${{ steps.filter.outputs.changes }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - name: Check for changes in lambda-1
-        id: lambda-1
-        uses: yumemi-inc/path-filter@v2
-        with:
-          patterns: 'lambda-1/**'
-          run: |
-            echo "change_list=lambda-1" >> $GITHUB_OUTPUT
-            echo "change_flag=true" >> $GITHUB_OUTPUT
-      - name: Check for changes in lambda-2
-        id: lambda-2
-        uses: yumemi-inc/path-filter@v2
-        with:
-          patterns: 'lambda-2/**'
-          run: |
-            change_list = "${{ steps.lambda-1.outputs.change_list }}|lambda-2" >> $GITHUB_OUTPUT
-            echo "change_flag=true" >> $GITHUB_OUTPUT
-      - name: Get output
-        run: |
-          echo "${{ steps.lambda-1.outputs.change_list }}"
-          echo "${{ steps.lambda-2.outputs.change_list }}"
-          echo "${{ steps.lambda-1.outputs.change_flag }}"
-          echo "${{ steps.lambda-2.outputs.change_flag }}"
-  lambda-deploy-all:
-    if: ${{ env.change_flag  == 'true' }}
-    needs: [check-for-change]
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          lambda-1: 
+            - 'lambda-1/**'
+          lambda-2: 
+            - 'lambda-2/**'
+
+  deploy-lambdas:
+    if: ${{ needs.changes.outputs.lambdas != '[]' }}
+    needs: changes
+    env:
+      EXECUTION: 'true'
     strategy:
-        matrix:
-            label: [lambda-1, lambda-2]
+      matrix:
+        # Parse JSON array containing names of all filters matching any of changed files
+        # e.g. ['batch-adapter', 'dv-s3-transfer'] if both lambda folders contains changes
+        lambdas: ${{ fromJSON(needs.changes.outputs.lambdas) }}
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - name: Configure AWS
-        uses: aws-actions/configure-aws-credentials@v4.0.2
-        with:
-          role-to-assume: arn:aws:iam::949263681218:role/ankit-oidc-role
-          aws-region: us-east-1
-      - name: Set stage
+      - uses: actions/checkout@v4
+      - name: Setup Stage
+        shell: bash
         run: |
-          if [[ $GITHUB_REF == refs/heads/dev ]]; then
-            echo "STAGE=dev" >> $GITHUB_ENV
-          elif [[ $GITHUB_REF == refs/heads/qa ]]; then
-            echo "STAGE=qa" >> $GITHUB_ENV
+          if [ $GITHUB_REF_NAME == "main" ]
+          then
+            echo "export STAGE=prod" >> ~/.bash_profile
+          elif [ $GITHUB_REF_NAME == "dev" ]
+          then
+            echo "export STAGE=dev" >> ~/.bash_profile
+          elif [ $GITHUB_REF_NAME == "qa" ]
+          then
+            echo "export STAGE=enterprise" >> ~/.bash_profile
+          elif [ $GITHUB_REF_NAME == "staging" ]
+            then
+              echo "export STAGE=staging" >> ~/.bash_profile
+          else
+            echo "export STAGE=dirty" >> ~/.bash_profile
+            echo "EXECUTION=false" >> $GITHUB_ENV
           fi
-      - name: Deploy lambda
+
+      # Login
+      - name: Login to AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: AWS_FederatedOIDC_for_lambda
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Deploy Services
+      - name: Update Lambda ${{ matrix.lambdas }}
+        if: ${{ env.EXECUTION == 'true' }}
+        shell: bash
         run: |
-          cd ${{ matrix.label }}
-          zip -r lambda_zip.zip *
-          aws lambda update-function-code --function-name "${{ matrix.label }}-$STAGE" --zip-file fileb://./lambda_zip.zip
+          source ~/.bash_profile
+          cd ${{ matrix.lambdas }}
+          zip -r function.zip *
+          aws lambda update-function-code --function-name "${{ matrix.lambdas }}-$STAGE" --zip-file fileb://function.zip
